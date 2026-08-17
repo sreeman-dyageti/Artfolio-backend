@@ -227,8 +227,27 @@ const refreshAccessToken = async (refreshToken) => {
     };
 };
 
+// logout 
+const logout = async (refreshToken) => {
+    if (!refreshToken) {
+        const error = new Error("Refresh token is required");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const tokenHash = hashToken(refreshToken);
+
+    await pool.query(
+        `UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP
+        WHERE token_hash = $1
+        `,
+        [tokenHash]
+    );
+};
+
 module.exports = {
     register,
     login,
     refreshAccessToken,
+    logout,
 };
