@@ -1,7 +1,9 @@
 const bcrypt = require("bcrypt");
 const pool = require("../config/database");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
+// Register 
 const register = async ({
     email,
     password,
@@ -75,7 +77,34 @@ const register = async ({
     }
 };
 
+// refresh token generation
+const generateRefreshToken = () => {
+    return crypto.randomBytes(64).toString("hex");
+};
 
+const hashToken = (token) => {
+    return crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+};
+
+// generate access Token
+const generateAccessToken = (user) => {
+    return jwt.sign(
+        {
+            sub: user.id,
+            role: user.role,
+        },
+        process.env.JWT_ACCESS_SECRET,
+        {
+            expiresIn:
+                process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+        }
+    );
+};
+
+// Login
 const login = async ({ email, password }) => {
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -106,19 +135,27 @@ const login = async ({ email, password }) => {
         throw error;
     }
 
-    const accessToken = jwt.sign(
-        {
-            sub: user.id,
-            role: user.role,
-        },
-        process.env.JWT_ACCESS_SECRET,
-        {
-            expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
-        }
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken();
+
+    const tokenHash = hashToken(refreshToken);
+
+    const expiresAt = new Date();
+
+    expiresAt.setDate(
+        expiresAt.getDate() +
+        Number(process.env.JWT_REFRESH_EXPIRES_DAYS || 7)
+    );
+
+    await pool.query( 
+    `INSERT INTO refresh_tokens ( user_id, token_hash, expires_at)
+    VALUES ($1, $2, $3)`,
+        [ user.id, tokenHash, expiresAt,]
     );
 
     return {
         accessToken,
+        refreshToken,
         user: {
             id: user.id,
             email: user.email,
@@ -134,7 +171,64 @@ const login = async ({ email, password }) => {
     };
 };
 
+// refresh access Token to return access token
+const refreshAccessToken = async (refreshToken) => {
+    if (!refreshToken) {
+        const error = new Error("Refresh token is required");
+        error.statusCode = 401;
+        throw error;
+    }
+
+    const tokenHash = hashToken(refreshToken);
+
+    const result = await pool.query(
+        `
+        SELECT
+            rt.id,
+            rt.user_id,
+            rt.expires_at,
+            rt.revoked_at,
+            u.role
+        FROM refresh_tokens rt
+        JOIN users u
+            ON u.id = rt.user_id
+        WHERE rt.token_hash = $1
+        `,
+        [tokenHash]
+    );
+
+    if (result.rows.length === 0) {
+        const error = new Error("Invalid refresh token");
+        error.statusCode = 401;
+        throw error;
+    }
+
+    const session = result.rows[0];
+
+    if (session.revoked_at) {
+        const error = new Error("Refresh token has been revoked");
+        error.statusCode = 401;
+        throw error;
+    }
+
+    if (new Date(session.expires_at) <= new Date()) {
+        const error = new Error("Refresh token has expired");
+        error.statusCode = 401;
+        throw error;
+    }
+
+    const accessToken = generateAccessToken({
+        id: session.user_id,
+        role: session.role,
+    });
+
+    return {
+        accessToken,
+    };
+};
+
 module.exports = {
     register,
     login,
+    refreshAccessToken,
 };
