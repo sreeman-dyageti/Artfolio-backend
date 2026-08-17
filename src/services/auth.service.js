@@ -147,10 +147,10 @@ const login = async ({ email, password }) => {
         Number(process.env.JWT_REFRESH_EXPIRES_DAYS || 7)
     );
 
-    await pool.query( 
-    `INSERT INTO refresh_tokens ( user_id, token_hash, expires_at)
+    await pool.query(
+        `INSERT INTO refresh_tokens ( user_id, token_hash, expires_at)
     VALUES ($1, $2, $3)`,
-        [ user.id, tokenHash, expiresAt,]
+        [user.id, tokenHash, expiresAt,]
     );
 
     return {
@@ -182,16 +182,9 @@ const refreshAccessToken = async (refreshToken) => {
     const tokenHash = hashToken(refreshToken);
 
     const result = await pool.query(
-        `
-        SELECT
-            rt.id,
-            rt.user_id,
-            rt.expires_at,
-            rt.revoked_at,
-            u.role
-        FROM refresh_tokens rt
-        JOIN users u
-            ON u.id = rt.user_id
+        `SELECT rt.id, rt.user_id, rt.expires_at, rt.revoked_at, u.role
+         FROM refresh_tokens rt
+         JOIN users u ON u.id = rt.user_id
         WHERE rt.token_hash = $1
         `,
         [tokenHash]
@@ -245,9 +238,51 @@ const logout = async (refreshToken) => {
     );
 };
 
+// get current user
+const getCurrentUser = async (userId) => {
+    const result = await pool.query(
+        ` SELECT u.id, u.email, u.role, u.is_verified, u.created_at, p.id AS profile_id,
+            p.username,
+            p.display_name,
+            p.bio,
+            p.avatar_url,
+            p.website
+        FROM users u
+        JOIN profiles p ON p.user_id = u.id
+        WHERE u.id = $1
+        `,
+        [userId]
+    );
+
+    if (result.rows.length === 0) {
+        const error = new Error("User not found");
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const user = result.rows[0];
+
+    return {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isVerified: user.is_verified,
+        createdAt: user.created_at,
+        profile: {
+            id: user.profile_id,
+            username: user.username,
+            displayName: user.display_name,
+            bio: user.bio,
+            avatarUrl: user.avatar_url,
+            website: user.website,
+        },
+    };
+};
+
 module.exports = {
     register,
     login,
     refreshAccessToken,
     logout,
+    getCurrentUser,
 };

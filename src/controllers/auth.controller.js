@@ -94,9 +94,26 @@ const logout = async (req, res, next) => {
     }
 };
 
+// current user
+const getMe = async (req, res, next) => {
+    try {
+        const user = await authService.getCurrentUser(req.user.id);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                user,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     register,
     login,
     refresh,
     logout,
+    getMe,
 };
