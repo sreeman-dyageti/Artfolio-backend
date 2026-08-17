@@ -1,6 +1,9 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
+const errorHandler = require("./middleware/error.middleware");
+
+const authRoutes = require("./routes/auth.routes");
 
 const app = express();
 
@@ -16,5 +19,9 @@ app.get("/health", (req,res) =>{
         message: "Artfolio API is running",
     });
 });
+
+app.use("/api/v1/auth", authRoutes)
+
+app.use(errorHandler);
 
 module.exports = app;
