@@ -97,8 +97,38 @@ const getArtworkById = async (req, res, next) => {
     }
 };
 
+// Publish ArtWork
+const publishArtwork = async (req, res, next) => {
+    try {
+        const artwork = await artworkService.publishArtwork(
+            req.params.id,
+            req.user.id
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Artwork published successfully",
+            data: {
+                artwork,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+
+
+
+
+
+
+
+
 module.exports = {
     createArtwork,
     getArtworks,
     getArtworkById,
+    publishArtwork,
 };

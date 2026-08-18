@@ -122,8 +122,49 @@ const getArtworkById = async (artworkId) => {
     };
 };
 
+// Publish ArtWork
+const publishArtwork = async (artworkId, userId) => {
+    const result = await pool.query(
+        ` UPDATE artworks 
+        SET
+            status = 'published',
+            published_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+          AND user_id = $2
+          AND status = 'draft'
+        RETURNING  id, user_id, title, description, cover_image_url, category_id, status,
+            published_at,
+            created_at,
+            updated_at
+        `,
+        [artworkId, userId]
+    );
+
+    if (result.rows.length === 0) {
+        const error = new Error(
+            "Artwork not found or you do not have permission to publish it"
+        );
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return result.rows[0];
+};
+
+
+
+
+
+
+
+
+
+
+
 module.exports = {
     createArtwork,
     getArtworks,
     getArtworkById,
+    publishArtwork,
 };

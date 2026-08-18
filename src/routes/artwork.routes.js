@@ -13,6 +13,16 @@ router.post(
 );
 
 router.get("/", artworkController.getArtworks);
-
+router.patch( "/:id/publish",
+    authenticate,
+    artworkController.publishArtwork
+);
 router.get("/:id", artworkController.getArtworkById);
+
+
+
+
+
+
+
 module.exports = router;
