@@ -1,8 +1,5 @@
 const pool = require("../config/database");
-const {
-    uploadToCloudinary,
-    deleteFromCloudinary,
-} = require("../utils/cloudinary");
+const { uploadToCloudinary, deleteFromCloudinary,} = require("../utils/cloudinary");
 
 // Create Artwork
 const createArtwork = async ({
@@ -152,7 +149,94 @@ const publishArtwork = async (artworkId, userId) => {
     return result.rows[0];
 };
 
+// Process-steps 
+const addProcessSteps = async ({
+    artworkId,
+    userId,
+    images,
+}) => {
+    const artworkResult = await pool.query(
+        `
+        SELECT id
+        FROM artworks
+        WHERE id = $1
+          AND user_id = $2
+        `,
+        [artworkId, userId]
+    );
 
+    if (artworkResult.rows.length === 0) {
+        const error = new Error(
+            "Artwork not found or you do not have permission to modify it"
+        );
+
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const uploadedImages = [];
+
+    try {
+        for (const image of images) {
+            const uploaded = await uploadToCloudinary(
+                image.buffer,
+                `artfolio/artworks/${artworkId}/process`
+            );
+
+            uploadedImages.push(uploaded);
+        }
+
+        const client = await pool.connect();
+
+        try {
+            await client.query("BEGIN");
+
+            const steps = [];
+
+            for (let index = 0; index < uploadedImages.length; index++) {
+                const uploadedImage = uploadedImages[index];
+
+                const result = await client.query(
+                    ` INSERT INTO process_steps ( artwork_id, step_number, image_url, image_id )
+                    VALUES ($1, $2, $3, $4)
+                    RETURNING id, artwork_id, step_number, title, description, image_url, image_id, created_at, updated_at
+                    `,
+                    [
+                        artworkId,
+                        index + 1,
+                        uploadedImage.url,
+                        uploadedImage.publicId,
+                    ]
+                );
+
+                steps.push(result.rows[0]);
+            }
+
+            await client.query("COMMIT");
+
+            return steps;
+        } catch (error) {
+            await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        // Cleanup Cloudinary uploads if database operation fails.
+        for (const image of uploadedImages) {
+            try {
+                await deleteFromCloudinary(image.publicId);
+            } catch (cleanupError) {
+                console.error(
+                    "Failed to cleanup Cloudinary image:",
+                    cleanupError
+                );
+            }
+        }
+
+        throw error;
+    }
+};
 
 
 
@@ -167,4 +251,5 @@ module.exports = {
     getArtworks,
     getArtworkById,
     publishArtwork,
+    addProcessSteps,
 };

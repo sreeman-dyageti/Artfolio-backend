@@ -117,7 +117,33 @@ const publishArtwork = async (req, res, next) => {
     }
 };
 
+// Process Steps
+const addProcessSteps = async (req, res, next) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "At least one process image is required",
+            });
+        }
 
+        const steps = await artworkService.addProcessSteps({
+            artworkId: req.params.id,
+            userId: req.user.id,
+            images: req.files,
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: "Process steps added successfully",
+            data: {
+                steps,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 
 
 
@@ -131,4 +157,5 @@ module.exports = {
     getArtworks,
     getArtworkById,
     publishArtwork,
+    addProcessSteps,
 };
