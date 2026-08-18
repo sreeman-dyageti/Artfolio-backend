@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const errorHandler = require("./middleware/error.middleware");
+const artworkRoutes = require("./routes/artwork.routes");
 
 const authRoutes = require("./routes/auth.routes");
 
@@ -21,6 +22,7 @@ app.get("/health", (req,res) =>{
 });
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/artworks", artworkRoutes);
 
 app.use(errorHandler);
 
