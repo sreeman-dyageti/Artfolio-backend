@@ -150,7 +150,7 @@ const publishArtwork = async (artworkId, userId) => {
 };
 
 // Process-steps 
-const addProcessSteps = async ({
+const replaceProcessSteps = async ({
     artworkId,
     userId,
     images,
@@ -177,6 +177,7 @@ const addProcessSteps = async ({
     const uploadedImages = [];
 
     try {
+        // Upload the complete new sequence.
         for (const image of images) {
             const uploaded = await uploadToCloudinary(
                 image.buffer,
@@ -191,15 +192,48 @@ const addProcessSteps = async ({
         try {
             await client.query("BEGIN");
 
+            // Get existing Cloudinary IDs before deleting DB rows.
+            const existingSteps = await client.query(
+                `
+                SELECT image_id
+                FROM process_steps
+                WHERE artwork_id = $1
+                `,
+                [artworkId]
+            );
+
+            await client.query(
+                `
+                DELETE FROM process_steps
+                WHERE artwork_id = $1
+                `,
+                [artworkId]
+            );
+
             const steps = [];
 
             for (let index = 0; index < uploadedImages.length; index++) {
                 const uploadedImage = uploadedImages[index];
 
                 const result = await client.query(
-                    ` INSERT INTO process_steps ( artwork_id, step_number, image_url, image_id )
+                    `
+                    INSERT INTO process_steps (
+                        artwork_id,
+                        step_number,
+                        image_url,
+                        image_id
+                    )
                     VALUES ($1, $2, $3, $4)
-                    RETURNING id, artwork_id, step_number, title, description, image_url, image_id, created_at, updated_at
+                    RETURNING
+                        id,
+                        artwork_id,
+                        step_number,
+                        title,
+                        description,
+                        image_url,
+                        image_id,
+                        created_at,
+                        updated_at
                     `,
                     [
                         artworkId,
@@ -214,6 +248,18 @@ const addProcessSteps = async ({
 
             await client.query("COMMIT");
 
+            // Delete old Cloudinary images after DB success.
+            for (const step of existingSteps.rows) {
+                try {
+                    await deleteFromCloudinary(step.image_id);
+                } catch (cleanupError) {
+                    console.error(
+                        "Failed to delete old process image:",
+                        cleanupError
+                    );
+                }
+            }
+
             return steps;
         } catch (error) {
             await client.query("ROLLBACK");
@@ -222,13 +268,13 @@ const addProcessSteps = async ({
             client.release();
         }
     } catch (error) {
-        // Cleanup Cloudinary uploads if database operation fails.
+        // If DB failed, remove newly uploaded images.
         for (const image of uploadedImages) {
             try {
                 await deleteFromCloudinary(image.publicId);
             } catch (cleanupError) {
                 console.error(
-                    "Failed to cleanup Cloudinary image:",
+                    "Failed to cleanup uploaded process image:",
                     cleanupError
                 );
             }
@@ -251,5 +297,5 @@ module.exports = {
     getArtworks,
     getArtworkById,
     publishArtwork,
-    addProcessSteps,
+    replaceProcessSteps,
 };

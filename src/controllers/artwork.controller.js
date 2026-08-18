@@ -118,7 +118,7 @@ const publishArtwork = async (req, res, next) => {
 };
 
 // Process Steps
-const addProcessSteps = async (req, res, next) => {
+const replaceProcessSteps = async (req, res, next) => {
     try {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({
@@ -127,15 +127,15 @@ const addProcessSteps = async (req, res, next) => {
             });
         }
 
-        const steps = await artworkService.addProcessSteps({
+        const steps = await artworkService.replaceProcessSteps({
             artworkId: req.params.id,
             userId: req.user.id,
             images: req.files,
         });
 
-        return res.status(201).json({
+        return res.status(200).json({
             success: true,
-            message: "Process steps added successfully",
+            message: "Process steps updated successfully",
             data: {
                 steps,
             },
@@ -151,11 +151,10 @@ const addProcessSteps = async (req, res, next) => {
 
 
 
-
 module.exports = {
     createArtwork,
     getArtworks,
     getArtworkById,
     publishArtwork,
-    addProcessSteps,
+    replaceProcessSteps,
 };

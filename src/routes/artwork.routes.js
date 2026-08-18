@@ -17,10 +17,11 @@ router.patch( "/:id/publish",
     authenticate,
     artworkController.publishArtwork
 );
-router.post( "/:id/process-steps",
+router.put(
+    "/:id/process-steps",
     authenticate,
     upload.array("images", 20),
-    artworkController.addProcessSteps
+    artworkController.replaceProcessSteps
 );
 router.get("/:id", artworkController.getArtworkById);
 
