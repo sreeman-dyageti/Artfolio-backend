@@ -3,7 +3,7 @@ const pool = require("../config/database");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
-// Register 
+// Registeration
 const register = async ({
     email,
     password,
@@ -44,7 +44,7 @@ const register = async ({
 
         const userResult = await client.query(
             ` INSERT INTO users ( email, password_hash) VALUES ($1, $2)
-            RETURNING id, email, role, is_verified, created_at`,
+            RETURNING id, email, is_verified, created_at`,
             [normalizedEmail, passwordHash]
         );
 
@@ -94,7 +94,6 @@ const generateAccessToken = (user) => {
     return jwt.sign(
         {
             sub: user.id,
-            role: user.role,
         },
         process.env.JWT_ACCESS_SECRET,
         {
@@ -109,7 +108,7 @@ const login = async ({ email, password }) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     const result = await pool.query(
-        ` SELECT u.id, u.email, u.password_hash, u.role, u.is_verified, p.id AS profile_id, p.username, p.display_name, p.avatar_url
+        ` SELECT u.id, u.email, u.password_hash, u.is_verified, p.id AS profile_id, p.username, p.display_name, p.avatar_url
          FROM users u
          JOIN profiles p ON p.user_id = u.id
          WHERE LOWER(u.email) = $1 `,
@@ -212,7 +211,6 @@ const refreshAccessToken = async (refreshToken) => {
 
     const accessToken = generateAccessToken({
         id: session.user_id,
-        role: session.role,
     });
 
     return {
