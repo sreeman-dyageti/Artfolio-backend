@@ -2,6 +2,7 @@ const express = require("express");
 const authenticate = require("../middleware/auth.middleware");
 const upload = require("../middleware/upload.middleware");
 const artworkController = require("../controllers/artwork.controller");
+const optionalAuth = require("../middlewares/optionalAuth");
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.post(
     artworkController.createArtwork
 );
 
-router.get("/", artworkController.getArtworks);
+router.get("/", optionalAuth, artworkController.getArtworks);
 router.patch( "/:id/publish",
     authenticate,
     artworkController.publishArtwork
@@ -54,7 +55,7 @@ router.delete("/:id/save",
     artworkController.unsaveArtwork
 );
 
-router.get("/:id", artworkController.getArtworkById);
+router.get("/:id", optionalAuth, artworkController.getArtworkById);
 
 
 module.exports = router;

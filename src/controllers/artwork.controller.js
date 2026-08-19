@@ -64,6 +64,7 @@ const getArtworks = async (req, res, next) => {
             limit,
             search: req.query.search?.trim() || null,
             category: req.query.category?.trim() || null,
+            userId: req.user?.id || null,
         });
 
         return res.status(200).json({

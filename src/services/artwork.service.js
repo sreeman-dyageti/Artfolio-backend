@@ -46,6 +46,7 @@ const getArtworks = async ({
     limit = 12,
     search = null,
     category = null,
+    userId = null,
 }) => {
     const offset = (page - 1) * limit;
 
@@ -66,74 +67,110 @@ const getArtworks = async ({
     if (category) {
         filterValues.push(category);
 
-        filters.push(` c.slug = $${filterValues.length}`);
+        filters.push(`
+            c.slug = $${filterValues.length}
+        `);
     }
 
     const whereClause = filters.length
-        ? `WHERE a.status = 'published' AND ${filters.join(" AND ")}`
+        ? `WHERE a.status = 'published'
+           AND ${filters.join(" AND ")}`
         : `WHERE a.status = 'published'`;
 
+    // COUNT
 
     const countResult = await pool.query(
-        `SELECT COUNT(*) AS total
-         FROM artworks a
-         LEFT JOIN categories c ON c.id = a.category_id
+        `
+        SELECT COUNT(*) AS total
+        FROM artworks a
+        LEFT JOIN categories c
+            ON c.id = a.category_id
         ${whereClause}
         `,
         filterValues
     );
 
+    // SOCIAL USER
     const artworkValues = [
         limit,
         offset,
         ...filterValues,
+        userId,
     ];
 
-    // Because LIMIT/OFFSET occupy $1 and $2,
-    // search/category placeholders need to start from $3.
     const artworkWhereClause = filters.length
-        ? `WHERE a.status = 'published' AND ${filters
-              .map((condition) =>
-                  condition.replace(/\$(\d+)/g, (_, number) =>
+        ? `WHERE a.status = 'published'
+           AND ${filters
+            .map((condition) =>
+                condition.replace(
+                    /\$(\d+)/g,
+                    (_, number) =>
                         `$${Number(number) + 2}`
-                  )
-              )
-              .join(" AND ")}`
+                )
+            )
+            .join(" AND ")}`
         : `WHERE a.status = 'published'`;
 
     const result = await pool.query(
-        ` SELECT
-            a.id,
-            a.title,
-            a.description,
-            a.cover_image_url,
-            a.category_id,
-            a.status,
-            a.published_at,
-            a.created_at,
+        `
+    SELECT
+        a.id,
+        a.title,
+        a.description,
+        a.cover_image_url,
+        a.category_id,
+        a.status,
+        a.published_at,
+        a.created_at,
 
-            p.username,
-            p.display_name,
-            p.avatar_url,
+        p.username,
+        p.display_name,
+        p.avatar_url,
 
-            c.name AS category_name,
-            c.slug AS category_slug
+        c.name AS category_name,
+        c.slug AS category_slug,
 
-        FROM artworks a
+        (
+            SELECT COUNT(*)
+            FROM likes l
+            WHERE l.artwork_id = a.id
+        ) AS like_count,
 
-        JOIN profiles p
-            ON p.user_id = a.user_id
+        (
+            SELECT COUNT(*)
+            FROM saves s
+            WHERE s.artwork_id = a.id
+        ) AS save_count,
 
-        LEFT JOIN categories c
-            ON c.id = a.category_id
+        EXISTS (
+            SELECT 1
+            FROM likes l
+            WHERE l.artwork_id = a.id
+              AND l.user_id = $${artworkValues.length}
+        ) AS liked_by_me,
 
-        ${artworkWhereClause}
+        EXISTS (
+            SELECT 1
+            FROM saves s
+            WHERE s.artwork_id = a.id
+              AND s.user_id = $${artworkValues.length}
+        ) AS saved_by_me
 
-        ORDER BY a.created_at DESC
+    FROM artworks a
 
-        LIMIT $1
-        OFFSET $2
-        `,
+    JOIN profiles p
+        ON p.user_id = a.user_id
+
+    LEFT JOIN categories c
+        ON c.id = a.category_id
+
+    ${artworkWhereClause}
+
+    ORDER BY a.created_at DESC
+
+    LIMIT $1
+    OFFSET $2
+    `,
         artworkValues
     );
 
@@ -152,34 +189,69 @@ const getArtworks = async ({
     };
 };
 
-// Get Single ArtWork DRAFT
-const getArtworkById = async (artworkId) => {
+// Get ARTWORK by ID
+const getArtworkById = async (artworkId, userId = null) => {
     const result = await pool.query(
-        ` SELECT a.id, a.user_id, a.title, a.description, a.cover_image_url, a.cover_image_id, a.category_id, a.status,
-            a.published_at,
-            a.created_at,
-            a.updated_at,
+        `
+    SELECT
+        a.id,
+        a.user_id,
+        a.title,
+        a.description,
+        a.cover_image_url,
+        a.cover_image_id,
+        a.category_id,
+        a.status,
+        a.published_at,
+        a.created_at,
+        a.updated_at,
 
-            p.username,
-            p.display_name,
-            p.bio,
-            p.avatar_url,
+        p.username,
+        p.display_name,
+        p.bio,
+        p.avatar_url,
 
-            c.name AS category_name,
-            c.slug AS category_slug
+        c.name AS category_name,
+        c.slug AS category_slug,
 
-        FROM artworks a
+        (
+            SELECT COUNT(*)
+            FROM likes l
+            WHERE l.artwork_id = a.id
+        ) AS like_count,
 
-        JOIN profiles p
-            ON p.user_id = a.user_id
+        (
+            SELECT COUNT(*)
+            FROM saves s
+            WHERE s.artwork_id = a.id
+        ) AS save_count,
 
-        LEFT JOIN categories c
-            ON c.id = a.category_id
+        EXISTS (
+            SELECT 1
+            FROM likes l
+            WHERE l.artwork_id = a.id
+              AND l.user_id = $2
+        ) AS liked_by_me,
 
-        WHERE a.id = $1
-          AND a.status = 'published'
-        `,
-        [artworkId]
+        EXISTS (
+            SELECT 1
+            FROM saves s
+            WHERE s.artwork_id = a.id
+              AND s.user_id = $2
+        ) AS saved_by_me
+
+    FROM artworks a
+
+    JOIN profiles p
+        ON p.user_id = a.user_id
+
+    LEFT JOIN categories c
+        ON c.id = a.category_id
+
+    WHERE a.id = $1
+      AND a.status = 'published'
+    `,
+        [artworkId, userId]
     );
 
     if (result.rows.length === 0) {
