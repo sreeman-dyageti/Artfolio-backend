@@ -43,7 +43,7 @@ const createArtwork = async (req, res, next) => {
     }
 };
 
-// get ArtWork
+// get ArtWorks
 const getArtworks = async (req, res, next) => {
     try {
         const page = Math.max(
@@ -59,20 +59,16 @@ const getArtworks = async (req, res, next) => {
             50
         );
 
-        const artworks = await artworkService.getArtworks({
+        const result = await artworkService.getArtworks({
             page,
             limit,
+            search: req.query.search?.trim() || null,
+            category: req.query.category?.trim() || null,
         });
 
         return res.status(200).json({
             success: true,
-            data: {
-                artworks,
-                pagination: {
-                    page,
-                    limit,
-                },
-            },
+            data: result,
         });
     } catch (error) {
         next(error);

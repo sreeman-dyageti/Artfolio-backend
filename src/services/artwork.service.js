@@ -40,31 +40,116 @@ const createArtwork = async ({
     }
 };
 
-// Get ArtWork
-const getArtworks = async ({ page = 1, limit = 12 }) => {
+// Get ArtWorks
+const getArtworks = async ({
+    page = 1,
+    limit = 12,
+    search = null,
+    category = null,
+}) => {
     const offset = (page - 1) * limit;
 
+    const filters = [];
+    const filterValues = [];
+
+    if (search) {
+        filterValues.push(`%${search}%`);
+
+        filters.push(`
+            (
+                a.title ILIKE $${filterValues.length}
+                OR a.description ILIKE $${filterValues.length}
+            )
+        `);
+    }
+
+    if (category) {
+        filterValues.push(category);
+
+        filters.push(` c.slug = $${filterValues.length}`);
+    }
+
+    const whereClause = filters.length
+        ? `WHERE a.status = 'published' AND ${filters.join(" AND ")}`
+        : `WHERE a.status = 'published'`;
+
+
+    const countResult = await pool.query(
+        `SELECT COUNT(*) AS total
+         FROM artworks a
+         LEFT JOIN categories c ON c.id = a.category_id
+        ${whereClause}
+        `,
+        filterValues
+    );
+
+    const artworkValues = [
+        limit,
+        offset,
+        ...filterValues,
+    ];
+
+    // Because LIMIT/OFFSET occupy $1 and $2,
+    // search/category placeholders need to start from $3.
+    const artworkWhereClause = filters.length
+        ? `WHERE a.status = 'published' AND ${filters
+              .map((condition) =>
+                  condition.replace(/\$(\d+)/g, (_, number) =>
+                        `$${Number(number) + 2}`
+                  )
+              )
+              .join(" AND ")}`
+        : `WHERE a.status = 'published'`;
+
     const result = await pool.query(
-        `SELECT a.id, a.title, a.description, a.cover_image_url, a.category_id, a.status, a.published_at,
+        ` SELECT
+            a.id,
+            a.title,
+            a.description,
+            a.cover_image_url,
+            a.category_id,
+            a.status,
+            a.published_at,
             a.created_at,
+
             p.username,
             p.display_name,
             p.avatar_url,
+
             c.name AS category_name,
             c.slug AS category_slug
+
         FROM artworks a
-        JOIN profiles p ON p.user_id = a.user_id
+
+        JOIN profiles p
+            ON p.user_id = a.user_id
+
         LEFT JOIN categories c
             ON c.id = a.category_id
-        WHERE a.status = 'published'
+
+        ${artworkWhereClause}
+
         ORDER BY a.created_at DESC
+
         LIMIT $1
         OFFSET $2
         `,
-        [limit, offset]
+        artworkValues
     );
 
-    return result.rows;
+    const total = Number(countResult.rows[0].total);
+
+    return {
+        artworks: result.rows,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+            hasNextPage: page * limit < total,
+            hasPreviousPage: page > 1,
+        },
+    };
 };
 
 // Get Single ArtWork DRAFT
