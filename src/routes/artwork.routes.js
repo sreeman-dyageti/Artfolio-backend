@@ -17,18 +17,23 @@ router.patch( "/:id/publish",
     authenticate,
     artworkController.publishArtwork
 );
-router.put(
-    "/:id/process-steps",
+router.put("/:id/process-steps",
     authenticate,
     upload.array("images", 20),
     artworkController.replaceProcessSteps
 );
+
+
+router.patch("/:id",
+    authenticate,
+    artworkController.updateArtwork
+);
+
+router.delete("/:id",
+    authenticate,
+    artworkController.deleteArtwork
+);
 router.get("/:id", artworkController.getArtworkById);
-
-
-
-
-
 
 
 module.exports = router;

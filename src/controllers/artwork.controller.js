@@ -145,8 +145,45 @@ const replaceProcessSteps = async (req, res, next) => {
     }
 };
 
+// update ArtWork
+const updateArtwork = async (req, res, next) => {
+    try {
+        const artwork = await artworkService.updateArtwork({
+            artworkId: req.params.id,
+            userId: req.user.id,
+            title: req.body.title,
+            description: req.body.description,
+            categoryId: req.body.categoryId,
+        });
 
+        return res.status(200).json({
+            success: true,
+            message: "Artwork updated successfully",
+            data: {
+                artwork,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 
+// Delete ArtWork
+const deleteArtwork = async (req, res, next) => {
+    try {
+        await artworkService.deleteArtwork(
+            req.params.id,
+            req.user.id
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Artwork deleted successfully",
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 
 
 
@@ -157,4 +194,6 @@ module.exports = {
     getArtworkById,
     publishArtwork,
     replaceProcessSteps,
+    updateArtwork,
+    deleteArtwork,
 };

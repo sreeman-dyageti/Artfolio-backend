@@ -1,5 +1,5 @@
 const pool = require("../config/database");
-const { uploadToCloudinary, deleteFromCloudinary,} = require("../utils/cloudinary");
+const { uploadToCloudinary, deleteFromCloudinary, } = require("../utils/cloudinary");
 
 // Create Artwork
 const createArtwork = async ({
@@ -285,7 +285,136 @@ const replaceProcessSteps = async ({
 };
 
 
+// Update ArtWork
+const updateArtwork = async ({
+    artworkId,
+    userId,
+    title,
+    description,
+    categoryId,
+}) => {
+    const result = await pool.query(
+        ` UPDATE artworks
+          SET
+            title = COALESCE($1, title),
+            description = COALESCE($2, description),
+            category_id = COALESCE($3, category_id),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $4 AND user_id = $5
+        RETURNING
+            id,
+            user_id,
+            title,
+            description,
+            cover_image_url,
+            cover_image_id,
+            category_id,
+            status,
+            published_at,
+            created_at,
+            updated_at `,
+        [title?.trim() || null, description !== undefined ? description.trim() : null,
+        categoryId || null,
+            artworkId,
+            userId,
+        ]
+    );
 
+    if (result.rows.length === 0) {
+        const error = new Error(
+            "Artwork not found or you do not have permission to modify it"
+        );
+
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return result.rows[0];
+};
+
+// Delete ArtWork
+const deleteArtwork = async (artworkId, userId) => {
+    const client = await pool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        const artworkResult = await client.query(
+            `
+            SELECT
+                id,
+                cover_image_id
+            FROM artworks
+            WHERE id = $1
+              AND user_id = $2
+            `,
+            [artworkId, userId]
+        );
+
+        if (artworkResult.rows.length === 0) {
+            const error = new Error(
+                "Artwork not found or you do not have permission to delete it"
+            );
+
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const artwork = artworkResult.rows[0];
+
+        const stepsResult = await client.query(
+            `
+            SELECT image_id
+            FROM process_steps
+            WHERE artwork_id = $1
+            `,
+            [artworkId]
+        );
+
+        await client.query(
+            `
+            DELETE FROM artworks
+            WHERE id = $1
+              AND user_id = $2
+            `,
+            [artworkId, userId]
+        );
+
+        await client.query("COMMIT");
+
+        // Cloudinary cleanup after DB deletion.
+        if (artwork.cover_image_id) {
+            await deleteFromCloudinary(
+                artwork.cover_image_id
+            );
+        }
+
+        for (const step of stepsResult.rows) {
+            if (step.image_id) {
+                await deleteFromCloudinary(
+                    step.image_id
+                );
+            }
+        }
+
+        return {
+            id: artworkId,
+        };
+    } catch (error) {
+        try {
+            await client.query("ROLLBACK");
+        } catch (rollbackError) {
+            console.error(
+                "Rollback failed:",
+                rollbackError
+            );
+        }
+
+        throw error;
+    } finally {
+        client.release();
+    }
+};
 
 
 
@@ -298,4 +427,6 @@ module.exports = {
     getArtworkById,
     publishArtwork,
     replaceProcessSteps,
+    updateArtwork,
+    deleteArtwork,
 };
