@@ -33,6 +33,27 @@ router.delete("/:id",
     authenticate,
     artworkController.deleteArtwork
 );
+
+router.post("/:id/like",
+    authenticate,
+    artworkController.likeArtwork
+);
+
+router.delete("/:id/like",
+    authenticate,
+    artworkController.unlikeArtwork
+);
+
+router.post("/:id/save",
+    authenticate,
+    artworkController.saveArtwork
+);
+
+router.delete("/:id/save",
+    authenticate,
+    artworkController.unsaveArtwork
+);
+
 router.get("/:id", artworkController.getArtworkById);
 
 
