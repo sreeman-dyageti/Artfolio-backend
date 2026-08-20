@@ -1,27 +1,30 @@
 const express = require("express");
+const authenticate = require("../middleware/auth.middleware");
+const commentController = require("../controllers/comment.controller");
 
 const router = express.Router();
 
-const authenticate = require("../middleware/auth.middleware");
-const artworkController = require("../controllers/artwork.controller");
-
-router.post("/artworks/:id/comments",
+router.post(
+    "/artworks/:id/comments",
     authenticate,
-    artworkController.createComment
+    commentController.createComment
 );
 
-router.get("/artworks/:id/comments",
-    artworkController.getComments
+router.get(
+    "/artworks/:id/comments",
+    commentController.getComments
 );
 
-router.patch("/comments/:commentId",
+router.patch(
+    "/comments/:commentId",
     authenticate,
-    artworkController.updateComment
+    commentController.updateComment
 );
 
-router.delete("/comments/:commentId",
+router.delete(
+    "/comments/:commentId",
     authenticate,
-    artworkController.deleteComment
+    commentController.deleteComment
 );
 
 module.exports = router;
