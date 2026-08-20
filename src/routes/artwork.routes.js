@@ -14,48 +14,32 @@ router.post(
 );
 
 router.get("/", optionalAuth, artworkController.getArtworks);
-router.patch( "/:id/publish",
+
+router.patch(
+    "/:id/publish",
     authenticate,
     artworkController.publishArtwork
 );
-router.put("/:id/process-steps",
+
+router.put(
+    "/:id/process-steps",
     authenticate,
     upload.array("images", 20),
     artworkController.replaceProcessSteps
 );
 
-
-router.patch("/:id",
+router.patch(
+    "/:id",
     authenticate,
     artworkController.updateArtwork
 );
 
-router.delete("/:id",
+router.delete(
+    "/:id",
     authenticate,
     artworkController.deleteArtwork
 );
 
-router.post("/:id/like",
-    authenticate,
-    artworkController.likeArtwork
-);
-
-router.delete("/:id/like",
-    authenticate,
-    artworkController.unlikeArtwork
-);
-
-router.post("/:id/save",
-    authenticate,
-    artworkController.saveArtwork
-);
-
-router.delete("/:id/save",
-    authenticate,
-    artworkController.unsaveArtwork
-);
-
 router.get("/:id", optionalAuth, artworkController.getArtworkById);
-
 
 module.exports = router;
