@@ -2,7 +2,7 @@ const express = require("express");
 const authenticate = require("../middleware/auth.middleware");
 const upload = require("../middleware/upload.middleware");
 const artworkController = require("../controllers/artwork.controller");
-const optionalAuth = require("../middlewares/optionalAuth");
+const optionalAuth = require("../middleware/optionalAuth");
 
 const router = express.Router();
 
