@@ -18,6 +18,36 @@ const getProfile = async (req, res, next) => {
     }
 };
 
+// profile Update
+const updateProfile = async (req, res, next) => {
+    try {
+        const { display_name, bio, website } = req.body;
+
+        const profile = await profileService.updateProfile({
+            userId: req.user.id,
+            displayName: display_name,
+            bio,
+            website,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Profile updated successfully",
+            data: {
+                profile,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+
+
+
+
 module.exports = {
     getProfile,
+    updateProfile,
 };

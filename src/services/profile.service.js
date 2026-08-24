@@ -28,6 +28,42 @@ const getProfileByUserId = async (userId, currentUserId = null) => {
     return result.rows[0];
 };
 
+// Profile Update -for display_name, bio, website, avatar
+const updateProfile = async ({
+    userId,
+    displayName,
+    bio,
+    website,
+}) => {
+    const result = await pool.query(
+        `
+        UPDATE profiles
+        SET
+            display_name=COALESCE($1,display_name),
+            bio=COALESCE($2,bio),
+            website=COALESCE($3,website),
+            updated_at=CURRENT_TIMESTAMP
+        WHERE user_id=$4
+        RETURNING
+            id,user_id,username,display_name,bio,avatar_url,website,created_at,updated_at
+        `,
+        [displayName, bio, website, userId]
+    );
+
+    if (result.rows.length === 0) {
+        const error = new Error("Profile not found");
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return result.rows[0];
+};
+
+
+
+
+
 module.exports = {
     getProfileByUserId,
+    updateProfile,
 };
