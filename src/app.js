@@ -6,6 +6,7 @@ const artworkRoutes = require("./routes/artwork.routes");
 const commentRoutes = require("./routes/comment.routes");
 const socialRoutes = require("./routes/social.routes"); 
 const authRoutes = require("./routes/auth.routes");
+const profileRoutes = require("./routes/profile.routes");
 
 const app = express();
 
@@ -24,6 +25,8 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/artworks", artworkRoutes);
 app.use("/api/v1/comments", commentRoutes); 
 app.use("/api/v1/social", socialRoutes); 
+app.use("/api/v1", profileRoutes);
+
 
 app.use(errorHandler);
 
