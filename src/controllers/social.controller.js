@@ -76,9 +76,51 @@ const unsaveArtwork = async (req, res, next) => {
     }
 };
 
+// Follow
+const followUser = async (req, res, next) => {
+    try {
+        const result = await socialService.followUser(
+            req.user.id,
+            req.params.userId
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: result.alreadyFollowing
+                ? "Already following this user"
+                : "User followed successfully",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Unfollow 
+const unfollowUser = async (req, res, next) => {
+    try {
+        const result = await socialService.unfollowUser(
+            req.user.id,
+            req.params.userId
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: result.wasFollowing
+                ? "User unfollowed successfully"
+                : "User was not being followed",
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     likeArtwork,
     unlikeArtwork,
     saveArtwork,
     unsaveArtwork,
+    followUser,
+    unfollowUser,
 };

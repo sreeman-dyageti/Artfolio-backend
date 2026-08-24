@@ -28,4 +28,16 @@ router.delete(
     socialController.unsaveArtwork
 );
 
+router.post(
+    "/users/:userId/follow",
+    authenticate,
+    socialController.followUser
+);
+
+router.delete(
+    "/users/:userId/follow",
+    authenticate,
+    socialController.unfollowUser
+);
+
 module.exports = router;

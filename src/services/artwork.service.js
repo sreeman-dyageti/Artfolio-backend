@@ -20,15 +20,11 @@ const createArtwork = async ({
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id, user_id, title, description, cover_image_url, cover_image_id, category_id, status, published_at, created_at, updated_at
             `,
-            [
-                userId,
-                title.trim(),
+            [ userId, title.trim(),
                 description?.trim() || null,
                 uploadedImage.url,
                 uploadedImage.publicId,
-                categoryId || null,
-            ]
-        );
+                categoryId || null,]);
 
         return result.rows[0];
     } catch (error) {
@@ -68,8 +64,8 @@ const getArtworks = async ({
 
     // COUNT
     const countResult = await pool.query(
-        `
-        SELECT COUNT(*) AS total
+        
+       ` SELECT COUNT(*) AS total
         FROM artworks a
         LEFT JOIN categories c
             ON c.id = a.category_id
@@ -87,12 +83,12 @@ const getArtworks = async ({
     ];
 
     const artworkWhereClause = filterValues.length ? `WHERE a.status = 'published' AND ${conditions
-            .map((condition) =>
-                condition.replace( /\$(\d+)/g, (_, number) =>
-                        `$${Number(number) + 2}`
-                )
+        .map((condition) =>
+            condition.replace(/\$(\d+)/g, (_, number) =>
+                `$${Number(number) + 2}`
             )
-            .join(" AND ")}`
+        )
+        .join(" AND ")}`
         : `WHERE a.status = 'published'`;
 
     const result = await pool.query(
@@ -114,38 +110,19 @@ const getArtworks = async ({
         c.name AS category_name,
         c.slug AS category_slug,
 
-        (
-            SELECT COUNT(*)
-            FROM likes l
-            WHERE l.artwork_id = a.id
-        ) AS like_count,
+        ( SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS like_count,
 
-        (
-            SELECT COUNT(*)
-            FROM saves s
-            WHERE s.artwork_id = a.id
-        ) AS save_count,
+        ( SELECT COUNT(*) FROM saves s WHERE s.artwork_id = a.id ) AS save_count,
 
-        EXISTS (
-            SELECT 1
-            FROM likes l
-            WHERE l.artwork_id = a.id
-              AND l.user_id = $${artworkValues.length}
-        ) AS liked_by_me,
+        EXISTS ( SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = $${artworkValues.length}) AS liked_by_me,
 
-        EXISTS (
-            SELECT 1
-            FROM saves s
-            WHERE s.artwork_id = a.id
-              AND s.user_id = $${artworkValues.length}
-        ) AS saved_by_me
+        EXISTS ( SELECT 1 FROM saves s WHERE s.artwork_id = a.id AND s.user_id = $${artworkValues.length}) AS saved_by_me
+        FROM artworks a
 
-    FROM artworks a
-
-    JOIN profiles p
+        JOIN profiles p
         ON p.user_id = a.user_id
 
-    LEFT JOIN categories c
+        LEFT JOIN categories c
         ON c.id = a.category_id
 
     ${artworkWhereClause}
