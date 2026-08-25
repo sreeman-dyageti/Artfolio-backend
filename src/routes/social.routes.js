@@ -40,4 +40,10 @@ router.delete(
     socialController.unfollowUser
 );
 
+router.post(
+    "/artworks/:artworkId/share",
+    authenticate,
+    socialController.shareArtwork
+);
+
 module.exports = router;

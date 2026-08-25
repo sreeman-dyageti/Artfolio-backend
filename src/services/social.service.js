@@ -189,6 +189,62 @@ const unfollowUser = async (followerId, followingId) => {
     };
 };
 
+// Share ArtWork
+const shareArtwork = async ({
+    artworkId,
+    userId,
+    platform,
+}) => {
+    const allowedPlatforms = [
+        "copy_link",
+        "instagram",
+        "facebook",
+        "twitter",
+        "whatsapp",
+        "other",
+    ];
+
+    if (!allowedPlatforms.includes(platform)) {
+        const error = new Error("Invalid share platform");
+        error.statusCode = 400;
+        throw error;
+    }
+    
+    const artworkResult = await pool.query(
+        ` SELECT id FROM artworks WHERE id=$1 AND status='published'`,
+        [artworkId]);
+
+    if (artworkResult.rows.length === 0) {
+        const error = new Error("Artwork not found");
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const result = await pool.query(
+        `
+        INSERT INTO shares (
+            artwork_id,
+            user_id,
+            platform
+        )
+        VALUES ($1,$2,$3)
+        RETURNING
+            id,
+            artwork_id,
+            user_id,
+            platform,
+            created_at
+        `,
+        [artworkId, userId, platform]
+    );
+
+    return result.rows[0];
+};
+
+
+
+
+
 module.exports = {
     likeArtwork,
     unlikeArtwork,
@@ -196,4 +252,5 @@ module.exports = {
     unsaveArtwork,
     followUser,
     unfollowUser,
+    shareArtwork,
 };

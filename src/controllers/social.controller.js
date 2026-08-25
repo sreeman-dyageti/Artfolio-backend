@@ -116,6 +116,36 @@ const unfollowUser = async (req, res, next) => {
     }
 };
 
+// share ArtWork
+const shareArtwork = async (req, res, next) => {
+    try {
+        const { platform } = req.body;
+
+        if (!platform) {
+            return res.status(400).json({
+                success: false,
+                message: "Share platform is required",
+            });
+        }
+
+        const share = await socialService.shareArtwork({
+            artworkId: req.params.artworkId,
+            userId: req.user.id,
+            platform,
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: "Artwork shared successfully",
+            data: {
+                share,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     likeArtwork,
     unlikeArtwork,
@@ -123,4 +153,5 @@ module.exports = {
     unsaveArtwork,
     followUser,
     unfollowUser,
+    shareArtwork,
 };

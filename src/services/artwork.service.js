@@ -20,7 +20,7 @@ const createArtwork = async ({
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id, user_id, title, description, cover_image_url, cover_image_id, category_id, status, published_at, created_at, updated_at
             `,
-            [ userId, title.trim(),
+            [userId, title.trim(),
                 description?.trim() || null,
                 uploadedImage.url,
                 uploadedImage.publicId,
@@ -64,8 +64,8 @@ const getArtworks = async ({
 
     // COUNT
     const countResult = await pool.query(
-        
-       ` SELECT COUNT(*) AS total
+
+        ` SELECT COUNT(*) AS total
         FROM artworks a
         LEFT JOIN categories c
             ON c.id = a.category_id
@@ -92,8 +92,7 @@ const getArtworks = async ({
         : `WHERE a.status = 'published'`;
 
     const result = await pool.query(
-        `
-    SELECT
+        ` SELECT
         a.id,
         a.title,
         a.description,
@@ -113,6 +112,8 @@ const getArtworks = async ({
         ( SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS like_count,
 
         ( SELECT COUNT(*) FROM saves s WHERE s.artwork_id = a.id ) AS save_count,
+
+        (SELECT COUNT(*) FROM shares sh WHERE sh.artwork_id=a.id) AS share_count, 
 
         EXISTS ( SELECT 1 FROM likes l WHERE l.artwork_id = a.id AND l.user_id = $${artworkValues.length}) AS liked_by_me,
 
@@ -175,18 +176,9 @@ const getArtworkById = async (artworkId, userId = null) => {
         c.name AS category_name,
         c.slug AS category_slug,
 
-        (
-            SELECT COUNT(*)
-            FROM likes l
-            WHERE l.artwork_id = a.id
-        ) AS like_count,
-
-        (
-            SELECT COUNT(*)
-            FROM saves s
-            WHERE s.artwork_id = a.id
-        ) AS save_count,
-
+        ( SELECT COUNT(*) FROM likes l WHERE l.artwork_id = a.id) AS like_count,
+        ( SELECT COUNT(*) FROM saves s WHERE s.artwork_id = a.id) AS save_count,
+        (SELECT COUNT(*) FROM shares sh WHERE sh.artwork_id=a.id) AS share_count,
         EXISTS (
             SELECT 1
             FROM likes l
