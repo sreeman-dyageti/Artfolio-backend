@@ -12,6 +12,19 @@ const createArtwork = async (req, res, next) => {
                 message: "Title is required",
             });
         }
+        if (title.trim().length > 150) {
+            return res.status(400).json({
+                success: false,
+                message: "Title must not exceed 150 characters",
+            });
+        }
+
+        if (description.trim().length >255){
+            return res.status(400).json({
+                success: false,
+                message: "Description must not exceed 255 characters",
+            })
+        }
 
         if (!req.file) {
             return res.status(400).json({

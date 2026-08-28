@@ -10,11 +10,24 @@ const register = async (req, res, next) => {
             displayName,
         } = req.body;
 
-        if (!email || !password || !username || !displayName) {
+        if (!email?.trim() || !password || !username?.trim() || !displayName?.trim()) {
             return res.status(400).json({
                 success: false,
                 message:
                     "Email, password, username, and display name are required",
+            });
+        }
+        if (username.trim().length > 50) {
+            return res.status(400).json({
+                success: false,
+                message: "Username must not exceed 50 characters",
+            });
+        }
+
+        if (displayName.trim().length > 100) {
+            return res.status(400).json({
+                success: false,
+                message: "Display name must not exceed 100 characters",
             });
         }
 
@@ -40,7 +53,7 @@ const login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
-        if (!email || !password) {
+        if (!email?.trim() || !password) {
             return res.status(400).json({
                 success: false,
                 message: "Email and password are required",
@@ -70,6 +83,12 @@ const refresh = async (req, res, next) => {
         const result =
             await authService.refreshAccessToken(refreshToken);
 
+        if (!refreshToken) {
+            return res.status(400).json({
+                success: false,
+                message: "Refresh token is required",
+            });
+        }
         return res.status(200).json({
             success: true,
             message: "Access token refreshed successfully",
@@ -82,8 +101,17 @@ const refresh = async (req, res, next) => {
 
 // logout
 const logout = async (req, res, next) => {
-    try {
-        await authService.logout(req.body.refreshToken);
+    try { 
+        const { refreshToken } = req.body;
+        await authService.logout(refreshToken);
+       
+
+        if (!refreshToken) {
+            return res.status(400).json({
+                success: false,
+                message: "Refresh token is required",
+            });
+        }
 
         return res.status(200).json({
             success: true,
