@@ -1,5 +1,12 @@
 const authService = require("../services/auth.service");
 
+const refreshCookieOptions = {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    maxAge: Number(process.env.JWT_REFRESH_EXPIRES_DAYS || 7) * 24 * 60 * 60 * 1000,
+};
+
 // register
 const register = async (req, res, next) => {
     try {
@@ -64,11 +71,14 @@ const login = async (req, res, next) => {
             email,
             password,
         });
+        res.cookie("refresh_token", result.refreshToken, refreshCookieOptions);
+
+        const { refreshToken, ...data } = result;
 
         return res.status(200).json({
             success: true,
             message: "Login successful",
-            data: result,
+            data,
         });
     } catch (error) {
         next(error);
@@ -78,21 +88,22 @@ const login = async (req, res, next) => {
 // refresh token validation
 const refresh = async (req, res, next) => {
     try {
-        const { refreshToken } = req.body;
+        const refreshToken = req.cookies.refresh_token;
 
-        const result =
-            await authService.refreshAccessToken(refreshToken);
+        const result = await authService.refreshAccessToken(refreshToken);
 
-        if (!refreshToken) {
-            return res.status(400).json({
-                success: false,
-                message: "Refresh token is required",
-            });
-        }
+        res.cookie(
+            "refresh_token",
+            result.refreshToken,
+            refreshCookieOptions
+        );
+
         return res.status(200).json({
             success: true,
             message: "Access token refreshed successfully",
-            data: result,
+            data: {
+                accessToken: result.accessToken,
+            },
         });
     } catch (error) {
         next(error);
@@ -101,10 +112,10 @@ const refresh = async (req, res, next) => {
 
 // logout
 const logout = async (req, res, next) => {
-    try { 
+    try {
         const { refreshToken } = req.body;
         await authService.logout(refreshToken);
-       
+
 
         if (!refreshToken) {
             return res.status(400).json({

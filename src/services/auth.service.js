@@ -108,7 +108,7 @@ const login = async ({ email, password }) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     const result = await pool.query(
-        ` SELECT u.id, u.email, u.password_hash, u.is_verified, p.id AS profile_id, p.username, p.display_name, p.avatar_url
+        ` SELECT u.id,u.email,u.password_hash,u.role,u.is_verified,p.id AS profile_id,p.username,p.display_name,p.avatar_url
          FROM users u
          JOIN profiles p ON p.user_id = u.id
          WHERE LOWER(u.email) = $1 `,
