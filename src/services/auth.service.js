@@ -108,7 +108,7 @@ const login = async ({ email, password }) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     const result = await pool.query(
-        ` SELECT u.id,u.email,u.password_hash,u.role,u.is_verified,p.id AS profile_id,p.username,p.display_name,p.avatar_url
+        ` SELECT u.id,u.email,u.password_hash,u.is_verified,p.id AS profile_id,p.username,p.display_name,p.avatar_url
          FROM users u
          JOIN profiles p ON p.user_id = u.id
          WHERE LOWER(u.email) = $1 `,
@@ -171,6 +171,7 @@ const login = async ({ email, password }) => {
 };
 
 // refresh access Token to return access token
+// refresh access Token
 const refreshAccessToken = async (refreshToken) => {
     if (!refreshToken) {
         const error = new Error("Refresh token is required");
@@ -181,11 +182,10 @@ const refreshAccessToken = async (refreshToken) => {
     const tokenHash = hashToken(refreshToken);
 
     const result = await pool.query(
-        `SELECT rt.id, rt.user_id, rt.expires_at, rt.revoked_at, u.role
+        `SELECT rt.id,rt.user_id,rt.expires_at,rt.revoked_at
          FROM refresh_tokens rt
          JOIN users u ON u.id = rt.user_id
-        WHERE rt.token_hash = $1
-        `,
+         WHERE rt.token_hash = $1`,
         [tokenHash]
     );
 
@@ -209,12 +209,49 @@ const refreshAccessToken = async (refreshToken) => {
         throw error;
     }
 
+    const newRefreshToken = generateRefreshToken();
+    const newTokenHash = hashToken(newRefreshToken);
+
+    const expiresAt = new Date();
+
+    expiresAt.setDate(
+        expiresAt.getDate() +
+        Number(process.env.JWT_REFRESH_EXPIRES_DAYS || 7)
+    );
+
+    const client = await pool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        await client.query(
+            `UPDATE refresh_tokens
+             SET revoked_at = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [session.id]
+        );
+
+        await client.query(
+            `INSERT INTO refresh_tokens (user_id,token_hash,expires_at)
+             VALUES ($1,$2,$3)`,
+            [session.user_id, newTokenHash, expiresAt]
+        );
+
+        await client.query("COMMIT");
+    } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+    } finally {
+        client.release();
+    }
+
     const accessToken = generateAccessToken({
         id: session.user_id,
     });
 
     return {
         accessToken,
+        refreshToken: newRefreshToken,
     };
 };
 
@@ -239,7 +276,7 @@ const logout = async (refreshToken) => {
 // get current user
 const getCurrentUser = async (userId) => {
     const result = await pool.query(
-        ` SELECT u.id, u.email, u.role, u.is_verified, u.created_at, p.id AS profile_id,
+        ` SELECT u.id, u.email, u.is_verified, u.created_at, p.id AS profile_id,
             p.username,
             p.display_name,
             p.bio,

@@ -113,16 +113,21 @@ const refresh = async (req, res, next) => {
 // logout
 const logout = async (req, res, next) => {
     try {
-        const { refreshToken } = req.body;
-        await authService.logout(refreshToken);
-
-
+        const refreshToken = req.cookies.refresh_token;
+        
         if (!refreshToken) {
             return res.status(400).json({
                 success: false,
                 message: "Refresh token is required",
             });
         }
+        
+        await authService.logout(refreshToken);
+        res.clearCookie("refresh_token", {
+            httpOnly: true,
+            secure: false,
+            sameSite: "lax",
+        });
 
         return res.status(200).json({
             success: true,
