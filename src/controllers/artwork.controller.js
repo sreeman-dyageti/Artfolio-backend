@@ -67,7 +67,7 @@ const getArtworks = async (req, res, next) => {
             category: req.query.category?.trim() || null,
             userId: req.user?.id || null,
         });
-
+        res.set("Cache-Control", "no-store");
         return res.status(200).json({
             success: true,
             data: result,
